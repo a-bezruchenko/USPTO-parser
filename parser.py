@@ -15,6 +15,8 @@ def main():
     names = sys.argv[1:]
     overall_res = []
     time_start = time.clock()
+    not_found_description = []
+    not_found_claims = []
     for filename in names:
         print("processing " + filename)
         with open(filename, "r") as f:
@@ -23,51 +25,113 @@ def main():
         for text_num, text in enumerate(res):
             print(f"text #{text_num}")
             soup = BS(text)
-            try:
-                # Identification of a patent application.
-                temp = soup.find("application-reference")
-                if temp:
-                    application_reference = {'doc_number': temp.find("doc-number").text,
-                                             'country': temp.find("country").text,
-                                             'date': temp.find("date").text}
-                else:
-                    application_reference = None
-                # Identification of a published patent document.
-                temp = soup.find("publication-reference")
-                if temp:
-                    publication_reference = {'doc-number': temp.find("doc-number").text,
-                                             'country': temp.find("country").text,
-                                             'date': temp.find("date").text}
-                else:
-                    publication_reference = None
-                description = soup.find("description").text
-                claims = [x.text for x in soup.findAll("claim-text")]
+            # Identification of a patent application.
+            temp = soup.find("application-reference")
+            if temp:
+                application_reference = {'doc_number': temp.find("doc-number").text,
+                                         'country': temp.find("country").text,
+                                         'date': temp.find("date").text}
+            else:
+                application_reference = None
+            # Identification of a published patent document.
+            temp = soup.find("publication-reference")
+            if temp:
+                publication_reference = {'doc-number': temp.find("doc-number").text,
+                                         'country': temp.find("country").text,
+                                         'date': temp.find("date").text}
+            else:
+                publication_reference = None
 
-                applicants = []
-                for applicant in soup.findAll("applicant"):
-                    applicants.append({
-                        "first-name":applicant.find("first-name").text,
-                        "last-name":applicant.find("last-name").text})
+            description_tag = soup.find("description")
+            if description_tag:
+                description = description_tag.text
+            else:
+                not_found_description.append(text_num)
+                continue
 
-                agents = []
-                for agent in soup.find("parties").findAll("agent"):
-                    agents.append({"orgname":agent.find("orgname").text})
+            claims = [x.text for x in soup.findAll("claim-text")]
 
-                assignees = []
-                for assignee in soup.findAll("assignee"):
-                    assignees.append({"orgname": assignee.find("orgname").text})
+            # applicants = []
+            # for applicant in soup.findAll("applicant"):
+            #     applicants.append({
+            #         "first-name":applicant.find("first-name").text,
+            #         "last-name":applicant.find("last-name").text})
 
-                overall_res.append({
-                    "application_reference": application_reference,
-                    "publication_reference": publication_reference,
-                    "description" : description,
-                    "claims": claims,
-                    "applicants": applicants,
-                    "agents":agents,
-                    "assignees":assignees})
-            except AttributeError:
-                pass
-    pprint(overall_res)
+            # agents = []
+            # for agent in soup.find("parties").findAll("agent"):
+            #     agents.append({"orgname":agent.find("orgname").text})
+
+            # assignees = []
+            # for assignee in soup.findAll("assignee"):
+            #     assignees.append({"orgname": assignee.find("orgname").text})
+
+            classification_type = None
+            main_classification = None
+            for type in ("classification-ipc", "classification-ipcr", "classification-locarno"):
+                tag = soup.find(type)
+                if tag:
+                    classification_type = type
+                    if type == "classification-ipcr":
+                        section_tag = tag.find("section")
+                        class_tag = tag.find("class")
+                        subclass_tag = tag.find("subclass")
+
+                        if section_tag and class_tag and subclass_tag:
+                            patent_section = section_tag.text.strip()
+                            patent_class = class_tag.text.strip()
+                            patent_subclass = subclass_tag.text.strip()
+
+                            main_classification = f"{patent_section} {patent_class} {patent_subclass}"
+                            break
+                        else:
+                            continue
+                    else:
+                        main_classification_tag = tag.find("main-classification")
+                        if main_classification_tag:
+                            main_classification = main_classification_tag.text.strip()
+                            break
+                        else:
+                            continue
+
+
+            # tag = soup.find("classification-national")
+            # if tag:
+            #     country = tag.find("country").text.strip()
+            #     national_classification = tag.find("main-classification").text.strip()
+            # else:
+            #     country = None
+            #     national_classification = None
+
+            overall_res.append({
+                "application_reference": application_reference,
+                "publication_reference": publication_reference,
+                "main_classification_type": str(classification_type),
+                "main_classification": str(main_classification),
+                "description" : description,
+                "claims": claims
+                # "applicants": applicants,
+                # "agents":agents,
+                # "assignees":assignees
+            }
+            )
+
+    time_end = time.clock()
+
+    #pprint(overall_res)
+    main_classification_count = dict()
+
+    for el in overall_res:
+        if el["main_classification_type"]+el["main_classification"] in main_classification_count.keys():
+            main_classification_count[el["main_classification_type"]+el["main_classification"]] += 1
+        else:
+            main_classification_count[el["main_classification_type"]+el["main_classification"]] = 1
+
+    pprint(main_classification_count)
+
+    pprint(not_found_description)
+
+    print(time_end-time_start)
+
     input()
 
 if __name__=="__main__":
