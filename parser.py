@@ -81,7 +81,7 @@ def main():
                             patent_class = class_tag.text.strip()
                             patent_subclass = subclass_tag.text.strip()
 
-                            main_classification = f"{patent_section} {patent_class} {patent_subclass}"
+                            main_classification = f"{patent_section}"
                             break
                         else:
                             continue
@@ -92,6 +92,16 @@ def main():
                             break
                         else:
                             continue
+
+            abstract = str(None)
+            tag = soup.find("abstract")
+            if tag:
+                problem_tag = tag.find("abst-problem")
+                solution_tag = tag.find("abst-solution")
+                if problem_tag is not None and solution_tag is not None:
+                    abstract = problem_tag.text + " " + solution_tag.text
+                else:
+                    abstract = tag.text
 
 
             # tag = soup.find("classification-national")
@@ -105,6 +115,7 @@ def main():
             overall_res.append({
                 "application_reference": application_reference,
                 "publication_reference": publication_reference,
+                "abstract": abstract,
                 "main_classification_type": str(classification_type),
                 "main_classification": str(main_classification),
                 "description" : description,
@@ -119,6 +130,7 @@ def main():
 
     #pprint(overall_res)
     main_classification_count = dict()
+    none_abstract_count = 0
 
     for el in overall_res:
         if el["main_classification_type"]+el["main_classification"] in main_classification_count.keys():
@@ -126,9 +138,13 @@ def main():
         else:
             main_classification_count[el["main_classification_type"]+el["main_classification"]] = 1
 
+        if el["abstract"] == str(None):
+            none_abstract_count += 1
+
+
     pprint(main_classification_count)
 
-    pprint(not_found_description)
+    print(none_abstract_count)
 
     print(time_end-time_start)
 
