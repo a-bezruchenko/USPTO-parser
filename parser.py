@@ -56,17 +56,13 @@ def parse_patent(patent_text):
                 inventor = {'first-name': get_text_field(content, "first-name"),
                             'last-name': get_text_field(content, "last-name")}
                 inventors.append(inventor)
-    # applicants = []
-    # for applicant in soup.findAll("applicant"):
-    #     applicants.append({
-    #         "first-name":applicant.find("first-name").text,
-    #         "last-name":applicant.find("last-name").text})
     # agents = []
     # for agent in soup.find("parties").findAll("agent"):
     #     agents.append({"orgname":agent.find("orgname").text})
     assignees = []
     for assignee in soup.findAll("assignee"):
-        assignees.append({"orgname": get_text_field(assignee, "orgname")})
+        if get_text_field(assignee, "orgname"):
+            assignees.append(get_text_field(assignee, "orgname"))
     classification_type = None
     main_classification = None
     for type in ("classification-ipc", "classification-ipcr", "classification-locarno"):
@@ -141,8 +137,6 @@ def main():
     time_end = time.clock()
 
     print(time_end-time_start)
-
-
     input()
 
 if __name__=="__main__":
